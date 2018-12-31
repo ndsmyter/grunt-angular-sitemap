@@ -53,7 +53,7 @@
     "gruntplugin"
   ],
   "dependencies": {
-    "fs": "0.0.1-security",
-    "string-similarity": "^3.0.0"
+    "string-similarity": "^3.0.0",
+    "xmlbuilder": "^10.1.1"
   }
 }

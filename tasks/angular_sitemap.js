@@ -9,55 +9,22 @@
 'use strict';
 
 module.exports = function (grunt) {
-    const fs = require('fs');
     const stringSimilarity = require('string-similarity');
+    const xmlbuilder = require('xmlbuilder');
 
     grunt.file.defaultEncoding = 'utf8';
 
-    grunt.registerMultiTask('angular_sitemap', 'Grunt plugin to generate a sitemap from an Angular project', function () {
 
-        const options = this.options({
-            ignore: []
-        });
-
-        const parsingDocument = {};
-
-        const files = [].concat.apply([], this.files.map(file => file.src));
-        grunt.log.writeln('Fetching all information from the files...');
-        for (let i = 0; i < files.length; i++) {
-            const filePath = files[i];
-            grunt.log.writeln('\tParsing ' + filePath);
-            const contents = fs.readFileSync(filePath, 'utf8');
-
-            // First parse the final components
-            let pattern = /path\s*:\s*['"]([^'"]*)['"]\s*,\s*component\s*:/g;
-            let match = pattern.exec(contents);
-            while (match != null) {
-                if (parsingDocument[filePath] === undefined) {
-                    parsingDocument[filePath] = [];
-                }
-                parsingDocument[filePath].push({path: match[1]});
-                match = pattern.exec(contents);
-            }
-
-            // Second find the links between the route files
-            pattern = /path\s*:\s*['"]([^'"]*)['"]\s*,\s*loadChildren\s*:\s*['"]([^'"]*)['"]/g;
-            match = pattern.exec(contents);
-            while (match != null) {
-                if (parsingDocument[filePath] === undefined) {
-                    parsingDocument[filePath] = [];
-                }
-                parsingDocument[filePath].push({path: match[1], reference: match[2]});
-                match = pattern.exec(contents);
-            }
-        }
-
-        // Algorithm to combine the cross references of the route files
+    /**
+     * Link files as good as possible. This is an experimental method and can sometimes show errors.
+     * @param document The document that contains the current links and should be linked together
+     */
+    function linkFiles(document) {
         grunt.log.writeln('Link the files together...');
-        const keys = Object.keys(parsingDocument);
+        const keys = Object.keys(document);
         const referenced = [];
         for (let j = 0; j < keys.length; j++) {
-            const pathObjects = parsingDocument[keys[j]];
+            const pathObjects = document[keys[j]];
             for (let k = 0; k < pathObjects.length; k++) {
                 const pathObject = pathObjects[k];
                 if (pathObject.hasOwnProperty('reference')) {
@@ -66,7 +33,7 @@ module.exports = function (grunt) {
                         pathObject.children = [];
                     }
                     let bestMatch = bestMatchObject.bestMatch.target;
-                    pathObject.children.push(parsingDocument[bestMatch]);
+                    pathObject.children.push(document[bestMatch]);
                     // Mark the reference for deletion
                     referenced.push(bestMatch);
                 }
@@ -74,31 +41,43 @@ module.exports = function (grunt) {
         }
         grunt.log.writeln('Removing obsolete objects...');
         for (let l = 0; l < referenced.length; l++) {
-            delete parsingDocument[referenced[l]];
+            delete document[referenced[l]];
         }
+    }
 
-        grunt.log.writeln('Converting objects to paths');
-
-        function toPaths(rootPath, objectArray, indexList) {
-            Object
-                .keys(objectArray)
-                .map(key => objectArray[key])
-                .map(object => {
-                    object.forEach(objectElement => {
-                        let childPath = rootPath + '/' + objectElement.path;
-                        indexList.push(childPath);
-                        if (objectElement.hasOwnProperty('children')) {
-                            toPaths(childPath, objectElement.children, indexList);
-                        }
-                    });
+    /**
+     * Recursively convert all the objects of the document to 1 list of paths
+     * @param rootPath the root path that is recursively passed through
+     * @param objectArray the list of objects that is being converted
+     * @param indexList the final list of paths
+     */
+    function toPaths(rootPath, objectArray, indexList) {
+        Object
+            .keys(objectArray)
+            .map(key => objectArray[key])
+            .map(object => {
+                object.forEach(objectElement => {
+                    let childPath = rootPath + '/' + objectElement.path;
+                    indexList.push(childPath);
+                    if (objectElement.hasOwnProperty('children')) {
+                        toPaths(childPath, objectElement.children, indexList);
+                    }
                 });
-        }
+            });
+    }
 
-        let indexList = [];
-        toPaths('', parsingDocument, indexList);
-
+    /**
+     * Clean the paths using the given options. Cleaning means (among others): adding the manual paths, removing all trailing slashes, removing '/**',
+     * removing all parameters, removing all ignored paths etc.
+     * @param indexList the index list that needs to be cleaned
+     * @param options the options that give more information on how to clean the paths
+     * @return {*} the cleaned up list.
+     */
+    function cleanPaths(indexList, options) {
         grunt.log.writeln('Cleanup paths');
-        indexList = indexList
+        return indexList
+        // Add manual paths
+            .concat(options.manual)
             .map(value => {
                 const index = value.indexOf(':');
                 return index >= 0 ? value.substr(0, index) : value;
@@ -109,9 +88,100 @@ module.exports = function (grunt) {
             // Make the list unique
             .sort()
             .filter((value, index, array) => index === 0 || value !== array[index - 1])
+            // Remove ignored paths
             .filter((el) => !options.ignore.includes(el));
+    }
 
-        grunt.log.writeln('Paths: ' + indexList.join(', '));
+    function fetchInformation(files, document) {
+        grunt.log.writeln('Fetching all information from the files...');
+        for (let i = 0; i < files.length; i++) {
+            const filePath = files[i];
+            grunt.log.writeln('\tParsing ' + filePath);
+            const contents = grunt.file.read(filePath);
+
+            // First parse the final components
+            let pattern = /path\s*:\s*['"]([^'"]*)['"]\s*,\s*component\s*:/g;
+            let match = pattern.exec(contents);
+            while (match != null) {
+                if (document[filePath] === undefined) {
+                    document[filePath] = [];
+                }
+                document[filePath].push({path: match[1]});
+                match = pattern.exec(contents);
+            }
+
+            // Second find the links between the route files
+            pattern = /path\s*:\s*['"]([^'"]*)['"]\s*,\s*loadChildren\s*:\s*['"]([^'"]*)['"]/g;
+            match = pattern.exec(contents);
+            while (match != null) {
+                if (document[filePath] === undefined) {
+                    document[filePath] = [];
+                }
+                document[filePath].push({path: match[1], reference: match[2]});
+                match = pattern.exec(contents);
+            }
+        }
+    }
+
+    function writeToTxt(indexList, destinationFolder, rootUrl) {
+        const filePath = destinationFolder + 'sitemap.txt';
+        grunt.file.write(filePath, [''].concat(indexList).map(url => rootUrl + url).join('\r\n'));
+        grunt.log.writeln('Sitemap written to ' + filePath);
+    }
+
+    function writeToXml(indexList, destinationFolder, rootUrl) {
+        const xml = xmlbuilder.create('urlset', {encoding: 'utf-8'});
+        xml.att('xmlns', 'http://www.sitemaps.org/schemas/sitemap/0.9');
+        xml.com('Automatically generated using angular_sitemap on ' + new Date().toISOString());
+        [''].concat(indexList).map(url => rootUrl + url).forEach(url => {
+            xml.ele('url').ele('loc', url);
+        });
+
+        const filePath = destinationFolder + 'sitemap.xml';
+        grunt.file.write(filePath, xml.end({pretty: true}));
+        grunt.log.writeln('Sitemap written to ' + filePath);
+    }
+
+    grunt.registerMultiTask('angular_sitemap', 'Grunt plugin to generate a sitemap from an Angular project', function () {
+
+        const options = this.options({
+            rootUrl: 'https://test.com/',
+            dest: 'dist',
+            ignore: [],
+            output: 'txt',
+            manual: []
+        });
+
+        if (options.rootUrl.substr(-1) === '/') {
+            // Make sure the url doesn't end in a slash
+            options.rootUrl.substr(0, options.rootUrl.length - 1);
+        }
+        if (options.dest.substr(-1) !== '/') {
+            // Make sure the dest ends in a slash
+            options.dest += '/';
+        }
+
+        const document = {};
+
+        const files = [].concat.apply([], this.files.map(file => file.src));
+        fetchInformation(files, document);
+
+        // Algorithm to combine the cross references of the route files
+        linkFiles(document);
+
+        grunt.log.writeln('Converting objects to paths...');
+        let indexList = [];
+        toPaths('', document, indexList);
+
+        indexList = cleanPaths(indexList, options);
+
+        if (options.output === 'txt') {
+            writeToTxt(indexList, options.dest, options.rootUrl);
+        } else if (options.output === 'xml') {
+            writeToXml(indexList, options.dest, options.rootUrl);
+        } else {
+            grunt.log.error('Output format is not supported: ' + options.output);
+        }
     });
 
 };
