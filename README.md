@@ -37,53 +37,74 @@ grunt.initConfig({
 
 ### Options
 
-#### options.separator
+#### options.rootUrl
 Type: `String`
-Default value: `',  '`
+Default value: `https://test.com`
 
-A string value that is used to do something with whatever.
+The root URL that will be used to start the URLs in the sitemap with.
 
-#### options.punctuation
+#### options.dest
 Type: `String`
-Default value: `'.'`
+Default value: `dist`
 
-A string value that is used to do something else with whatever else.
+The destination folder in which the sitemaps will be generated.
+
+#### options.ignore
+Type: `Array`
+Default value: `[]`
+
+The list of paths that will be ignored from the final sitemap.
+This can be used to make sure some private URLs don't get any public attention.
+
+#### options.output
+Type: `String`
+Default value: `txt`
+
+Choose the output format of the sitemap.
+The supported formats are `txt` or `xml`.
+
+#### options.ignore
+Type: `Array`
+Default value: `[]`
+
+The list of paths that will be ignored from the final sitemap.
+This can be used to make sure some private URLs don't get any public attention.
+
+#### options.manual
+Type: `Array`
+Default value: `xml`
+
+The list of paths that will be manually added to the final sitemap.
+This is the best choice to add some URLs that are not actually in the Angular project,
+but should be in the sitemap.
+
 
 ### Usage Examples
 
 #### Default Options
-In this example, the default options are used to do something with whatever. So if the `testing` file has the content `Testing` and the `123` file had the content `1 2 3`, the generated result would be `Testing, 1 2 3.`
-
-```js
-grunt.initConfig({
-  angular_sitemap: {
-    options: {},
-    files: {
-      'dest/default_options': ['src/testing', 'src/123'],
-    },
-  },
-});
-```
-
-#### Custom Options
-In this example, custom options are used to do something else with whatever else. So if the `testing` file has the content `Testing` and the `123` file had the content `1 2 3`, the generated result in this case would be `Testing: 1 2 3 !!!`
+The default options will generate an XML sitemap in the `dist` folder.
+Don't forget to pass a list of route files to the plugin.
 
 ```js
 grunt.initConfig({
   angular_sitemap: {
     options: {
-      separator: ': ',
-      punctuation: ' !!!',
+        rootUrl: 'https://test.com/',
+        dest: 'dist',
+        ignore: [],
+        output: 'xml',
+        manual: []
     },
-    files: {
-      'dest/default_options': ['src/testing', 'src/123'],
-    },
+    expand: true,
+    cwd: 'src',
+    src: ['**/*.routes.ts']
   },
 });
 ```
 
 ## Contributing
-In lieu of a formal styleguide, take care to maintain the existing coding style. Add unit tests for any new or changed functionality. Lint and test your code using [Grunt](http://gruntjs.com/).
+In lieu of a formal styleguide, take care to maintain the existing coding style.
+Lint and test your code using [Grunt](http://gruntjs.com/).
 
 ## Release History
-_(Nothing yet)_
+1.0 First version with some basic options

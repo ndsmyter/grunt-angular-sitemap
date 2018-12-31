@@ -75,6 +75,7 @@ module.exports = function (grunt) {
      */
     function cleanPaths(indexList, options) {
         grunt.log.writeln('Cleanup paths');
+        const ignoredUrls = options.ignore.map(url => (url.substr(0, 1) !== '/' ? '/' : '') + url);
         return indexList
         // Add manual paths
             .concat(options.manual)
@@ -89,7 +90,7 @@ module.exports = function (grunt) {
             .sort()
             .filter((value, index, array) => index === 0 || value !== array[index - 1])
             // Remove ignored paths
-            .filter((el) => !options.ignore.includes(el));
+            .filter((el) => !ignoredUrls.includes(el));
     }
 
     function fetchInformation(files, document) {
@@ -123,17 +124,17 @@ module.exports = function (grunt) {
         }
     }
 
-    function writeToTxt(indexList, destinationFolder, rootUrl) {
+    function writeToTxt(indexList, destinationFolder, urls) {
         const filePath = destinationFolder + 'sitemap.txt';
-        grunt.file.write(filePath, [''].concat(indexList).map(url => rootUrl + url).join('\r\n'));
+        grunt.file.write(filePath, urls.join(grunt.util.linefeed));
         grunt.log.writeln('Sitemap written to ' + filePath);
     }
 
-    function writeToXml(indexList, destinationFolder, rootUrl) {
+    function writeToXml(indexList, destinationFolder, urls) {
         const xml = xmlbuilder.create('urlset', {encoding: 'utf-8'});
         xml.att('xmlns', 'http://www.sitemaps.org/schemas/sitemap/0.9');
         xml.com('Automatically generated using angular_sitemap on ' + new Date().toISOString());
-        [''].concat(indexList).map(url => rootUrl + url).forEach(url => {
+        urls.forEach(url => {
             xml.ele('url').ele('loc', url);
         });
 
@@ -148,7 +149,7 @@ module.exports = function (grunt) {
             rootUrl: 'https://test.com/',
             dest: 'dist',
             ignore: [],
-            output: 'txt',
+            output: 'xml',
             manual: []
         });
 
@@ -175,27 +176,14 @@ module.exports = function (grunt) {
 
         indexList = cleanPaths(indexList, options);
 
+        const urls = [''].concat(indexList).map(url => options.rootUrl + url);
         if (options.output === 'txt') {
-            writeToTxt(indexList, options.dest, options.rootUrl);
+            writeToTxt(indexList, options.dest, urls);
         } else if (options.output === 'xml') {
-            writeToXml(indexList, options.dest, options.rootUrl);
+            writeToXml(indexList, options.dest, urls);
         } else {
             grunt.log.error('Output format is not supported: ' + options.output);
         }
+        return urls;
     });
-
 };
-
-if (process.argv.length >= 2 && process.argv[2] === 'dev') {
-    console.log('---- DEBUG MODE ENABLED ---');
-    const grunt = {
-        file: {},
-        log: {writeln: console.log, error: console.error},
-        registerMultiTask: function (name, description, func) {
-            this[name] = func;
-        }
-    };
-    module.exports(grunt);
-
-    grunt.angular_sitemap();
-}
