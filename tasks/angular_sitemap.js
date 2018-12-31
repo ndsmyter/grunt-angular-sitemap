@@ -14,7 +14,6 @@ module.exports = function (grunt) {
 
     grunt.file.defaultEncoding = 'utf8';
 
-
     /**
      * Link files as good as possible. This is an experimental method and can sometimes show errors.
      * @param document The document that contains the current links and should be linked together
@@ -133,7 +132,11 @@ module.exports = function (grunt) {
     function writeToXml(indexList, destinationFolder, urls) {
         const xml = xmlbuilder.create('urlset', {encoding: 'utf-8'});
         xml.att('xmlns', 'http://www.sitemaps.org/schemas/sitemap/0.9');
+        xml.att('xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance');
+        xml.att('xsi:schemaLocation', 'http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd');
         xml.com('Automatically generated using angular_sitemap on ' + new Date().toISOString());
+        xml.com('sitemap-generator-url="https://github.com/ndsmyter/grunt-angular-sitemap"');
+        xml.com('generated-on="' + new Date().toISOString() + '"');
         urls.forEach(url => {
             xml.ele('url').ele('loc', url);
         });
@@ -144,7 +147,6 @@ module.exports = function (grunt) {
     }
 
     grunt.registerMultiTask('angular_sitemap', 'Grunt plugin to generate a sitemap from an Angular project', function () {
-
         const options = this.options({
             rootUrl: 'https://test.com/',
             dest: 'dist',
