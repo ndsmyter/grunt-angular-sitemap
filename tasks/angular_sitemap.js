@@ -9,34 +9,20 @@
 'use strict';
 
 module.exports = function (grunt) {
+    const fs = require('fs');
+    const stringSimilarity = require('string-similarity');
 
     grunt.file.defaultEncoding = 'utf8';
 
-    grunt.registerTask('angular_sitemap', 'Grunt plugin to generate a sitemap from an Angular project', function () {
+    grunt.registerMultiTask('angular_sitemap', 'Grunt plugin to generate a sitemap from an Angular project', function () {
 
-        // Dependencies
-        const glob = require('glob');
-        const fs = require('fs');
-        const stringSimilarity = require('string-similarity');
-
-        // Configuration
-        const config = {
-            path: 'D:/Applications/wamp64/www/mantis2/src',
+        const options = this.options({
             ignore: []
-        };
-        // Sanity checks for configuration parameters
-        if (!fs.existsSync(config.path)) {
-            grunt.log.error('Source path doesn\'t exist: ' + config.path);
-            return;
-        }
-        if (config.path.substr(-1) !== '/') {
-            // Make sure the path ends in a slash
-            config.path += '/';
-        }
+        });
 
         const parsingDocument = {};
 
-        const files = glob.sync(config.path + '**/*.routes.ts');
+        const files = [].concat.apply([], this.files.map(file => file.src));
         grunt.log.writeln('Fetching all information from the files...');
         for (let i = 0; i < files.length; i++) {
             const filePath = files[i];
@@ -123,7 +109,7 @@ module.exports = function (grunt) {
             // Make the list unique
             .sort()
             .filter((value, index, array) => index === 0 || value !== array[index - 1])
-            .filter((el) => !config.ignore.includes(el));
+            .filter((el) => !options.ignore.includes(el));
 
         grunt.log.writeln('Paths: ' + indexList.join(', '));
     });
@@ -135,7 +121,7 @@ if (process.argv.length >= 2 && process.argv[2] === 'dev') {
     const grunt = {
         file: {},
         log: {writeln: console.log, error: console.error},
-        registerTask: function (name, description, func) {
+        registerMultiTask: function (name, description, func) {
             this[name] = func;
         }
     };
