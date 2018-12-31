@@ -1,7 +1,7 @@
 {
   "name": "grunt-angular-sitemap",
   "description": "Grunt plugin to generate a sitemap from an Angular project",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage": "https://github.com/ndsmyter/grunt-angular-sitemap",
   "author": {
     "name": "Nicolas De Smyter",
@@ -18,7 +18,7 @@
   "licenses": [
     {
       "type": "GNU General Public License ",
-      "url": "https://github.com/ndsmyter/grunt-angular-sitemap/blob/master/LICENSE-GNU"
+      "url": "https://github.com/ndsmyter/grunt-angular-sitemap/blob/master/LICENSE"
     }
   ],
   "engines": {
